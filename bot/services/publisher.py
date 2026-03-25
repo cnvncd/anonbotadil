@@ -1,6 +1,7 @@
 """
 Publishes approved / scheduled posts to the Telegram channel.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,8 +14,6 @@ from bot.database.models import Post, ContentType
 
 logger = logging.getLogger(__name__)
 
-ANON_HEADER = "📩 <b>Анонимное сообщение</b>"
-
 
 async def publish_post(bot: Bot, post: Post) -> bool:
     """
@@ -23,13 +22,12 @@ async def publish_post(bot: Bot, post: Post) -> bool:
     Returns True on success, False on any Telegram error.
     """
     channel = settings.channel_id
-    caption = f"{ANON_HEADER}\n\n{post.text}" if post.text else ANON_HEADER
+    caption = post.text if post.text else None
 
     try:
         match post.content_type:
-
             case ContentType.TEXT | ContentType.LINK:
-                text_body = f"{ANON_HEADER}\n\n{post.text}" if post.text else ANON_HEADER
+                text_body = post.text if post.text else ""
                 await bot.send_message(channel, text_body, parse_mode="HTML")
 
             case ContentType.PHOTO:
@@ -93,13 +91,17 @@ async def _send_media_group(bot: Bot, channel: int, post: Post) -> None:
 
     for idx, pair in enumerate(pairs):
         media_type, file_id = pair.split(":", 1)
-        cap = (f"{ANON_HEADER}\n\n{post.text}" if post.text else ANON_HEADER) if idx == 0 else None
+        cap = post.text if (post.text and idx == 0) else None
 
         match media_type:
             case "photo":
-                media_items.append(InputMediaPhoto(media=file_id, caption=cap, parse_mode="HTML"))
+                media_items.append(
+                    InputMediaPhoto(media=file_id, caption=cap, parse_mode="HTML")
+                )
             case "video":
-                media_items.append(InputMediaVideo(media=file_id, caption=cap, parse_mode="HTML"))
+                media_items.append(
+                    InputMediaVideo(media=file_id, caption=cap, parse_mode="HTML")
+                )
             case "document":
                 media_items.append(
                     InputMediaDocument(media=file_id, caption=cap, parse_mode="HTML")
