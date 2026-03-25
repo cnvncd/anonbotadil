@@ -35,8 +35,12 @@ class AntiSpamMiddleware(BaseMiddleware):
         if user is None:
             return await handler(event, data)
 
-        # Skip anti-spam for /start command
+        # Skip anti-spam for commands
         if event.text and event.text.startswith("/"):
+            return await handler(event, data)
+
+        # Skip anti-spam for non-private chats
+        if event.chat.type != "private":
             return await handler(event, data)
 
         tid = user.id
