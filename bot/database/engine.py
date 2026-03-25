@@ -1,6 +1,7 @@
 """
 Async SQLAlchemy engine + session factory.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
@@ -20,7 +21,7 @@ engine: AsyncEngine = create_async_engine(
     settings.database_url,
     echo=False,
     # SQLite requires StaticPool + check_same_thread=False for async use
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False, "uri": True},
     poolclass=StaticPool,
 )
 
