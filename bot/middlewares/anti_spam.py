@@ -4,6 +4,7 @@ Anti-spam middleware: limits each user to one post per N seconds.
 Uses an in-process TTL cache (good for single-instance bots).
 For multi-instance deployments replace with a Redis-backed solution.
 """
+
 from __future__ import annotations
 
 import time
@@ -34,6 +35,10 @@ class AntiSpamMiddleware(BaseMiddleware):
         if user is None:
             return await handler(event, data)
 
+        # Skip anti-spam for /start command
+        if event.text and event.text.startswith("/"):
+            return await handler(event, data)
+
         tid = user.id
         now = time.monotonic()
         last = _last_post_ts.get(tid, 0.0)
@@ -43,7 +48,7 @@ class AntiSpamMiddleware(BaseMiddleware):
             remaining = int(settings.spam_interval_seconds - elapsed)
             logger.debug("Anti-spam triggered for user %s (wait %ss)", tid, remaining)
             await event.answer(
-                "⏳ Подождите немного перед отправкой следующего поста."
+                f"⏳ Подождите {remaining} сек. перед отправкой следующего поста."
             )
             return  # drop the update
 
