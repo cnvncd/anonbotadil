@@ -20,6 +20,7 @@ from sqlalchemy.pool import NullPool
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
     echo=False,
+    connect_args={"ssl": False} if "postgresql" in settings.database_url else {},
     poolclass=NullPool,
 )
 
