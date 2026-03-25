@@ -3,6 +3,7 @@ Handlers for regular users:
   /start command
   Post submission (text, photo, video, voice, document)
 """
+
 from __future__ import annotations
 
 import logging
@@ -63,6 +64,17 @@ async def handle_post(message: Message, session: AsyncSession, bot: Bot) -> None
     """Accept any supported content, save it and send to admin group."""
     tg_user = message.from_user
     if tg_user is None:
+        return
+
+    # Ignore messages from admin group and channel
+    if (
+        message.chat.id == settings.admin_group_id
+        or message.chat.id == settings.channel_id
+    ):
+        return
+
+    # Only accept messages from private chats
+    if message.chat.type != "private":
         return
 
     # Upsert user
