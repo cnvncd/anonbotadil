@@ -34,7 +34,7 @@ async def cmd_start(message: Message) -> None:
 
 async def _forward_to_admins(bot: Bot, post_id: int, message: Message) -> int | None:
     """
-    Forward the original message to the admin group for moderation.
+    Send the message content to the admin group for moderation (without forwarding).
 
     Returns the admin message_id or None on failure.
     """
@@ -44,15 +44,45 @@ async def _forward_to_admins(bot: Bot, post_id: int, message: Message) -> int | 
             f"📨 <b>Новый пост #{post_id}</b>",
             parse_mode="HTML",
         )
-        # Forward original content so admins see it as-is
-        fwd = await message.forward(settings.admin_group_id)
+
+        # Copy content instead of forwarding to preserve anonymity
+        if message.photo:
+            content_msg = await bot.send_photo(
+                settings.admin_group_id,
+                photo=message.photo[-1].file_id,
+                caption=message.caption,
+            )
+        elif message.video:
+            content_msg = await bot.send_video(
+                settings.admin_group_id,
+                video=message.video.file_id,
+                caption=message.caption,
+            )
+        elif message.voice:
+            content_msg = await bot.send_voice(
+                settings.admin_group_id,
+                voice=message.voice.file_id,
+                caption=message.caption,
+            )
+        elif message.document:
+            content_msg = await bot.send_document(
+                settings.admin_group_id,
+                document=message.document.file_id,
+                caption=message.caption,
+            )
+        else:
+            content_msg = await bot.send_message(
+                settings.admin_group_id,
+                message.text or "",
+            )
+
         # Attach moderation buttons to a separate control message
         ctrl = await bot.send_message(
             settings.admin_group_id,
             f"⬆️ Пост #{post_id} — выберите действие:",
             reply_markup=moderation_keyboard(post_id),
         )
-        _ = header, fwd  # held for reference; we track the control message
+        _ = header, content_msg  # held for reference; we track the control message
         return ctrl.message_id
     except Exception:
         logger.exception("Failed to forward post %s to admins", post_id)
