@@ -1,0 +1,24 @@
+[Unit]
+Description=Anonymous Post Telegram Bot
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=botuser
+WorkingDirectory=/opt/anon_bot
+EnvironmentFile=/opt/anon_bot/.env
+ExecStart=/opt/anon_bot/venv/bin/python -m bot.main
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=anon_bot
+
+# Harden the service
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/anon_bot/logs
+
+[Install]
+WantedBy=multi-user.target
