@@ -15,17 +15,12 @@ from sqlalchemy.ext.asyncio import (
 
 from bot.config import settings
 
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
     echo=False,
-    # SQLite requires StaticPool + check_same_thread=False for async use
-    connect_args={
-        "check_same_thread": False,
-        "timeout": 30,
-    },
-    poolclass=StaticPool,
+    poolclass=NullPool,
 )
 
 AsyncSessionFactory: async_sessionmaker[AsyncSession] = async_sessionmaker(
