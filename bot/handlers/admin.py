@@ -239,3 +239,42 @@ async def handle_manual_datetime(
         post_id,
         publish_at,
     )
+
+
+# ── View archived posts ──────────────────────────────────────────────────────
+
+
+@router.message(F.text == "/archive")
+async def cmd_view_archive(message: Message, session: AsyncSession) -> None:
+    """Show list of archived posts."""
+    if message.chat.id != settings.admin_group_id:
+        return
+
+    from bot.database.models import Post, PostStatus
+    from sqlalchemy import select
+
+    stmt = (
+        select(Post)
+        .where(Post.status == PostStatus.ARCHIVED)
+        .order_by(Post.created_at.desc())
+        .limit(20)
+    )
+    result = await session.execute(stmt)
+    archived_posts = result.scalars().all()
+
+    if not archived_posts:
+        await message.reply("📦 Архив пуст.")
+        return
+
+    response = "📦 <b>Архивные посты (последние 20):</b>\n\n"
+    for post in archived_posts:
+        created = post.created_at.astimezone(
+            datetime.timezone(datetime.timedelta(hours=5))
+        )
+        response += f"#{post.id} — {post.content_type.value} — {created.strftime('%d.%m.%Y %H:%M')}\n"
+        if post.text:
+            preview = post.text[:50] + "..." if len(post.text) > 50 else post.text
+            response += f"   {preview}\n"
+        response += "\n"
+
+    await message.reply(response, parse_mode="HTML")
