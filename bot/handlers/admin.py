@@ -15,7 +15,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import settings
-from bot.keyboards import schedule_keyboard
+from bot.keyboards import schedule_keyboard, confirmation_keyboard, moderation_keyboard
 from bot.services.post_service import PostService
 from bot.services.publisher import publish_post
 
@@ -57,6 +57,65 @@ async def _notify_user_rejected(bot: Bot, post_id: int, session: AsyncSession) -
             )
         except Exception:
             logger.warning("Could not notify user about rejection, post_id=%s", post_id)
+
+
+# ── Confirmation handlers ─────────────────────────────────────────────────────
+
+
+@router.callback_query(F.data.startswith("confirm_approve:"))
+async def cb_confirm_approve(query: CallbackQuery) -> None:
+    if not _is_admin_group(query):
+        return
+
+    post_id = int(query.data.split(":")[1])
+    await query.answer()
+    if query.message:
+        await query.message.edit_text(
+            f"⚠️ Подтвердите одобрение поста #{post_id}",
+            reply_markup=confirmation_keyboard("approve", post_id),
+        )
+
+
+@router.callback_query(F.data.startswith("confirm_reject:"))
+async def cb_confirm_reject(query: CallbackQuery) -> None:
+    if not _is_admin_group(query):
+        return
+
+    post_id = int(query.data.split(":")[1])
+    await query.answer()
+    if query.message:
+        await query.message.edit_text(
+            f"⚠️ Подтвердите отклонение поста #{post_id}",
+            reply_markup=confirmation_keyboard("reject", post_id),
+        )
+
+
+@router.callback_query(F.data.startswith("confirm_archive:"))
+async def cb_confirm_archive(query: CallbackQuery) -> None:
+    if not _is_admin_group(query):
+        return
+
+    post_id = int(query.data.split(":")[1])
+    await query.answer()
+    if query.message:
+        await query.message.edit_text(
+            f"⚠️ Подтвердите архивирование поста #{post_id}",
+            reply_markup=confirmation_keyboard("archive", post_id),
+        )
+
+
+@router.callback_query(F.data.startswith("back_to_moderation:"))
+async def cb_back_to_moderation(query: CallbackQuery) -> None:
+    if not _is_admin_group(query):
+        return
+
+    post_id = int(query.data.split(":")[1])
+    await query.answer()
+    if query.message:
+        await query.message.edit_text(
+            f"⬆️ Пост #{post_id} — выберите действие:",
+            reply_markup=moderation_keyboard(post_id),
+        )
 
 
 # ── Approve ───────────────────────────────────────────────────────────────────
@@ -207,7 +266,14 @@ async def handle_manual_datetime(
         return
 
     data = await state.get_data()
-    post_id: int = data["post_id"]
+    post_id = data.get("post_id")
+
+    if post_id is None:
+        await message.reply(
+            "❗ Ошибка: не найден ID поста. Попробуйте заново выбрать время публикации."
+        )
+        await state.clear()
+        return
 
     try:
         naive_dt = datetime.datetime.strptime(message.text or "", "%d.%m.%Y %H:%M")
@@ -223,7 +289,13 @@ async def handle_manual_datetime(
         return
 
     svc = PostService(session)
-    await svc.schedule(post_id, publish_at)
+    post = await svc.schedule(post_id, publish_at)
+
+    if post is None:
+        await message.reply(f"❗ Пост #{post_id} не найден.")
+        await state.clear()
+        return
+
     await session.commit()
     await state.clear()
 

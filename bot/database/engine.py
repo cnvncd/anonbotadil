@@ -18,7 +18,9 @@ from bot.config import settings
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
     echo=False,
-    connect_args={"ssl": False} if "postgresql" in settings.database_url else {},
+    connect_args={"ssl": False}
+    if "postgresql+asyncpg" in settings.database_url
+    else {},
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

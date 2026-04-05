@@ -20,6 +20,20 @@ logger = logging.getLogger(__name__)
 
 # telegram_id → unix timestamp of last accepted post
 _last_post_ts: dict[int, float] = {}
+# Cleanup interval: remove entries older than 2x spam_interval
+_CLEANUP_THRESHOLD = settings.spam_interval_seconds * 2
+
+
+def _cleanup_old_entries() -> None:
+    """Remove entries older than cleanup threshold to prevent memory leak."""
+    now = time.monotonic()
+    to_remove = [
+        tid for tid, ts in _last_post_ts.items() if now - ts > _CLEANUP_THRESHOLD
+    ]
+    for tid in to_remove:
+        del _last_post_ts[tid]
+    if to_remove:
+        logger.debug("Cleaned up %d old anti-spam entries", len(to_remove))
 
 
 class AntiSpamMiddleware(BaseMiddleware):
@@ -57,4 +71,9 @@ class AntiSpamMiddleware(BaseMiddleware):
             return  # drop the update
 
         _last_post_ts[tid] = now
+
+        # Periodically cleanup old entries (every ~100 requests)
+        if len(_last_post_ts) % 100 == 0:
+            _cleanup_old_entries()
+
         return await handler(event, data)

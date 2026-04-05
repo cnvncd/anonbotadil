@@ -90,6 +90,11 @@ async def _send_media_group(bot: Bot, channel: int, post: Post) -> None:
     pairs = (post.media_file_id or "").split(",")
 
     for idx, pair in enumerate(pairs):
+        if ":" not in pair:
+            logger.warning(
+                "Invalid media_group format for post id=%s: %s", post.id, pair
+            )
+            continue
         media_type, file_id = pair.split(":", 1)
         cap = post.text if (post.text and idx == 0) else None
 
