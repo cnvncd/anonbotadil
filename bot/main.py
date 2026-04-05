@@ -4,6 +4,7 @@ Application entry-point.
 Run with:
     python -m bot.main
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -70,7 +71,9 @@ async def main() -> None:
     scheduler_task = asyncio.create_task(scheduled_publisher_loop(bot))
 
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        await dp.start_polling(
+            bot, allowed_updates=["message", "callback_query", "edited_message"]
+        )
     finally:
         scheduler_task.cancel()
         try:
