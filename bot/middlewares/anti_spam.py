@@ -57,6 +57,10 @@ class AntiSpamMiddleware(BaseMiddleware):
         if event.chat.type != "private":
             return await handler(event, data)
 
+        # Skip anti-spam for media groups (albums) - they're handled as one post
+        if event.media_group_id:
+            return await handler(event, data)
+
         tid = user.id
         now = time.monotonic()
         last = _last_post_ts.get(tid, 0.0)
