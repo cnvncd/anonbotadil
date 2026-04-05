@@ -2,6 +2,7 @@
 Handlers for admin moderation actions:
   approve / reject / archive / schedule
 """
+
 from __future__ import annotations
 
 import datetime
@@ -31,20 +32,20 @@ class ScheduleState(StatesGroup):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _is_admin_group(query: CallbackQuery) -> bool:
-    return query.message is not None and query.message.chat.id == settings.admin_group_id
+    return (
+        query.message is not None and query.message.chat.id == settings.admin_group_id
+    )
 
 
 async def _notify_user_rejected(bot: Bot, post_id: int, session: AsyncSession) -> None:
     """Send rejection notice to the post author."""
     from bot.database.models import Post
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
-    stmt = (
-        select(Post)
-        .where(Post.id == post_id)
-        .join(Post.user)
-    )
+    stmt = select(Post).where(Post.id == post_id).options(selectinload(Post.user))
     result = await session.execute(stmt)
     post = result.scalar_one_or_none()
 
@@ -180,12 +181,16 @@ async def cb_sched_time(
     await svc.schedule(post_id, publish_at)
     await session.commit()
 
-    await query.answer(f"⏳ Запланировано на {publish_at.strftime('%d.%m.%Y %H:%M')} UTC")
+    await query.answer(
+        f"⏳ Запланировано на {publish_at.strftime('%d.%m.%Y %H:%M')} UTC"
+    )
     if query.message:
         await query.message.edit_text(
             f"⏳ Пост #{post_id} — запланирован на {publish_at.strftime('%d.%m.%Y %H:%M')} UTC"
         )
-    logger.info("Admin %s scheduled post %s at %s", query.from_user.id, post_id, publish_at)
+    logger.info(
+        "Admin %s scheduled post %s at %s", query.from_user.id, post_id, publish_at
+    )
 
 
 # ── Schedule: manual datetime input ──────────────────────────────────────────
@@ -218,4 +223,9 @@ async def handle_manual_datetime(
     await message.reply(
         f"⏳ Пост #{post_id} запланирован на {publish_at.strftime('%d.%m.%Y %H:%M')} UTC."
     )
-    logger.info("Admin %s manually scheduled post %s at %s", message.from_user.id if message.from_user else "unknown", post_id, publish_at)
+    logger.info(
+        "Admin %s manually scheduled post %s at %s",
+        message.from_user.id if message.from_user else "unknown",
+        post_id,
+        publish_at,
+    )
