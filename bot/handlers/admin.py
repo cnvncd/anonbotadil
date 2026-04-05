@@ -255,7 +255,7 @@ async def cb_sched_time(
 # ── Schedule: manual datetime input ──────────────────────────────────────────
 
 
-@router.message(ScheduleState.waiting_for_datetime)
+@router.message(ScheduleState.waiting_for_datetime, F.text)
 async def handle_manual_datetime(
     message: Message,
     session: AsyncSession,
@@ -263,6 +263,11 @@ async def handle_manual_datetime(
 ) -> None:
     # Only process messages from admin group
     if message.chat.id != settings.admin_group_id:
+        return
+
+    # Skip commands - let them be handled by other handlers
+    if message.text and message.text.startswith("/"):
+        await state.clear()
         return
 
     data = await state.get_data()
