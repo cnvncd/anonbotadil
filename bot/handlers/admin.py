@@ -202,12 +202,19 @@ async def handle_manual_datetime(
     session: AsyncSession,
     state: FSMContext,
 ) -> None:
+    # Only process messages from admin group
+    if message.chat.id != settings.admin_group_id:
+        return
+
     data = await state.get_data()
     post_id: int = data["post_id"]
 
     try:
         naive_dt = datetime.datetime.strptime(message.text or "", "%d.%m.%Y %H:%M")
-        publish_at = naive_dt.replace(tzinfo=datetime.timezone.utc)
+        # Convert from UTC+5 to UTC
+        utc_plus_5 = datetime.timezone(datetime.timedelta(hours=5))
+        local_dt = naive_dt.replace(tzinfo=utc_plus_5)
+        publish_at = local_dt.astimezone(datetime.timezone.utc)
     except ValueError:
         await message.reply(
             "❗ Неверный формат. Попробуйте: <code>DD.MM.YYYY HH:MM</code>",
@@ -220,8 +227,11 @@ async def handle_manual_datetime(
     await session.commit()
     await state.clear()
 
+    # Display in UTC+5 for user
+    utc_plus_5 = datetime.timezone(datetime.timedelta(hours=5))
+    local_time = publish_at.astimezone(utc_plus_5)
     await message.reply(
-        f"⏳ Пост #{post_id} запланирован на {publish_at.strftime('%d.%m.%Y %H:%M')} UTC."
+        f"⏳ Пост #{post_id} запланирован на {local_time.strftime('%d.%m.%Y %H:%M')} (UTC+5)."
     )
     logger.info(
         "Admin %s manually scheduled post %s at %s",
